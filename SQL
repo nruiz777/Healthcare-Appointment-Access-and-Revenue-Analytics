@@ -1,0 +1,114 @@
+/*
+Project: Healthcare Appointment Access & Revenue Analytics
+Database: PatientAccessOptimization
+Tools: Microsoft Azure SQL, SQL, Power BI
+
+Purpose:
+Analyze appointment outcomes, payer performance, and revenue leakage.
+*/
+
+/* 1. DATABASE AND TABLE */
+
+CREATE DATABASE PatientAccessOptimization;
+
+
+/* 2. APPOINTMENT SUMMARY */
+
+SELECT
+    COUNT(*) AS Total_Appointments,
+    SUM(CASE WHEN Appointment_Status = 'Completed' THEN 1 ELSE 0 END)
+        AS Completed_Appointments,
+    SUM(CASE WHEN Appointment_Status = 'No Show' THEN 1 ELSE 0 END)
+        AS No_Shows,
+    SUM(CASE WHEN Appointment_Status = 'Cancelled' THEN 1 ELSE 0 END)
+        AS Cancelled,
+    SUM(CASE WHEN Appointment_Status = 'Rescheduled' THEN 1 ELSE 0 END)
+        AS Rescheduled
+FROM dbo.Appointments;
+
+
+/* 3. NO-SHOW RATE */
+
+SELECT
+    COUNT(*) AS Total_Appointments,
+    SUM(CASE
+        WHEN Appointment_Status = 'No Show'
+        THEN 1 ELSE 0
+    END) AS No_Shows,
+    CAST(
+        100.0 *
+        SUM(CASE
+            WHEN Appointment_Status = 'No Show'
+            THEN 1 ELSE 0
+        END)
+        / NULLIF(COUNT(*),0)
+        AS DECIMAL(5,2)
+    ) AS No_Show_Rate
+FROM dbo.Appointments;
+
+
+/* 4. NO-SHOW RATE BY PROVIDER */
+
+SELECT
+    Provider,
+    COUNT(*) AS Total_Appointments,
+    SUM(CASE
+        WHEN Appointment_Status = 'No Show'
+        THEN 1 ELSE 0
+    END) AS No_Shows,
+    CAST(
+        100.0 *
+        SUM(CASE
+            WHEN Appointment_Status = 'No Show'
+            THEN 1 ELSE 0
+        END)
+        / NULLIF(COUNT(*),0)
+        AS DECIMAL(5,2)
+    ) AS No_Show_Rate
+FROM dbo.Appointments
+GROUP BY Provider
+ORDER BY No_Show_Rate DESC;
+
+
+/* 5. REVENUE BY PAYER */
+
+SELECT
+    Payer,
+    COUNT(*) AS Total_Appointments,
+    SUM(Expected_Revenue) AS Expected_Revenue,
+    SUM(Actual_Revenue) AS Actual_Revenue,
+    SUM(Revenue_Gap) AS Revenue_Gap
+FROM dbo.Appointments
+GROUP BY Payer
+ORDER BY Revenue_Gap DESC;
+
+
+/* 6. REVENUE GAP BY APPOINTMENT STATUS */
+
+SELECT
+    Appointment_Status,
+    COUNT(*) AS Appointment_Count,
+    SUM(Expected_Revenue) AS Expected_Revenue,
+    SUM(Actual_Revenue) AS Actual_Revenue,
+    SUM(Revenue_Gap) AS Revenue_Gap
+FROM dbo.Appointments
+GROUP BY Appointment_Status
+ORDER BY Revenue_Gap DESC;
+
+
+/* 7. FOLLOW-UP ANALYSIS */
+
+SELECT
+    Follow_Up_Required,
+    COUNT(*) AS Total_Appointments,
+    SUM(CASE
+        WHEN Follow_Up_Completed = 'Yes'
+        THEN 1 ELSE 0
+    END) AS Follow_Ups_Completed,
+    SUM(CASE
+        WHEN Follow_Up_Completed = 'No'
+        THEN 1 ELSE 0
+    END) AS Follow_Ups_Not_Completed
+FROM dbo.Appointments
+WHERE Follow_Up_Required = 'Yes'
+GROUP BY Follow_Up_Required;
